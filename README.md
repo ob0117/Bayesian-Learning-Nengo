@@ -1,1 +1,1 @@
-# 556-project
+# Bayesian Learning in Nengo
