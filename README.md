@@ -1,1 +1,1 @@
-# Bayesian Learning in Nengo
+# Adding Bayesian learning to Nengo!
