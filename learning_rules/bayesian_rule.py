@@ -214,9 +214,11 @@ class SimBayesian(Operator):
         sigma2_baseline = self.sigma2_baseline
         tau_learning = self.tau_learning
 
+        n_neurons = pre_filtered.shape[0]
+
         def step_simbayesian():
-            # Error term: error signal * pre-synaptic firing
-            error_term = np.outer( error, pre_filtered)
+            # Error term: error signal projected into pre-synaptic firing
+            error_term = np.outer( error / n_neurons, pre_filtered)
 
             # Regulatory variance term in linear space, from Aitchison et al.
             sigma2_del = 2 * sigma2_prior * np.sum(pre_filtered * dt * (1 - pre_filtered * dt)) \
