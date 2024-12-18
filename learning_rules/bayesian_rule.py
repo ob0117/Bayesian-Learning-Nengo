@@ -216,7 +216,7 @@ class SimBayesian(Operator):
 
         def step_simbayesian():
             # Error term: error signal * pre-synaptic firing
-            error_term = np.outer( error, dt * pre_filtered)
+            error_term = np.outer( error, pre_filtered)
 
             # Regulatory variance term in linear space, from Aitchison et al.
             sigma2_del = 2 * sigma2_prior * np.sum(pre_filtered * dt * (1 - pre_filtered * dt)) \
@@ -294,7 +294,8 @@ def build_bayesian(model, bayesian, rule):
     model.add_op(Reset(delta_s2))
 
     # Define input error signal
-    error = Signal(shape=rule.size_in, name="Bayesian:error")    
+    error = Signal(shape=rule.size_in, name="Bayesian:error")   
+    model.add_op(Reset(error)) 
     model.sig[rule]["in"] = error
 
     # Pre-synaptic activities
