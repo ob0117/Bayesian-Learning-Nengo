@@ -136,22 +136,22 @@ def build_or_passthrough(model, obj, signal):
     """Builds the obj on signal, or returns the signal if obj is None."""
     return signal if obj is None else model.build(obj, signal)
 
-# convert mean & variance from a distribution in log space to linear space
 def convert_log_to_linear(m, s2):
+    """Convert mean & variance from a log-space distribution to linear space."""
     mu = np.exp(m + s2 / 2)
     sigma2 = mu**2 * (np.exp(s2) - 1)
     
     return mu, sigma2
 
-# convert mean & variance from a distribution in linear space to log space
 def convert_linear_to_log(mu, sigma2):
+    """Convert mean & variance from a linear-space distribution to log space."""
     s2 = np.log( (sigma2 / mu**2) + 1 )
     m = np.log(mu) - s2 / 2
     
     return m, s2
 
-# helper to avoid extreme values in the log space
 def clip(value, name, epsi=1e-8, min_thresh=-10.0, max_thresh=10.0):
+    """Helper function to clip extreme values in the log space."""
     if(name == "s2"):
         return np.clip(value, epsi, max_thresh)
     else:
@@ -215,14 +215,14 @@ class SimBayesian(Operator):
         tau_learning = self.tau_learning
 
         def step_simbayesian():
-            # error term for weights based on Delta (PES) rule
-            error_term = np.outer( error, dt * pre_filtered )
+            # Error term: error signal * pre-synaptic firing
+            error_term = np.outer( error, dt * pre_filtered)
 
-            # regulatory variance term in linear space, from Aitchison et al.
+            # Regulatory variance term in linear space, from Aitchison et al.
             sigma2_del = 2 * sigma2_prior * np.sum(pre_filtered * dt * (1 - pre_filtered * dt)) \
                         + sigma2_baseline
             
-            # updates to log mean and variance, from Aitchison et al.
+            # Updates to log mean and variance, from Aitchison et al.
             delta_m[...] = clip(
                 ( (s2 * mu) / sigma2_del ) * error_term \
                     - 1 / tau_learning * (m - m_prior),
@@ -243,10 +243,10 @@ class SimBayesian(Operator):
                 "s2"
             )
 
-            # store for probing
+            # Store for probing
             mu[...], sigma2[...] = convert_log_to_linear(m, s2)
 
-            # sample weights from normal distribution using current log parameters
+            # Using log parameters to sample weights in linear space
             weights[...] = np.exp(m + np.sqrt(s2) * np.random.normal(0, 1, size=m.shape))
 
         return step_simbayesian
@@ -273,11 +273,11 @@ def build_bayesian(model, bayesian, rule):
         bayesian.prior_variance
     )
 
-    # signals for mean and variance for probes
+    # Signals for mean and variance, for probes
     mu = Signal(bayesian.prior_mean, name="Bayesian:mu")
     sigma2 = Signal(bayesian.prior_variance, name="Bayesian:sigma2")
 
-    # updates to mean and variance happen in log space
+    # Actual updates to mean and variance happen in log space
     m = Signal(m_prior, name="Bayesian:m")
     s2 = Signal(s2_prior, name="Bayesian:s2")
 
@@ -293,11 +293,11 @@ def build_bayesian(model, bayesian, rule):
     model.add_op(Reset(delta_m))
     model.add_op(Reset(delta_s2))
 
-    # define input error signal
+    # Define input error signal
     error = Signal(shape=rule.size_in, name="Bayesian:error")    
     model.sig[rule]["in"] = error
 
-    # pre-synaptic activities
+    # Pre-synaptic activities
     pre_filtered = build_or_passthrough(
         model, bayesian.pre_synapse, model.sig[conn.pre_obj]["out"]
     )
@@ -305,7 +305,7 @@ def build_bayesian(model, bayesian, rule):
         model, bayesian.post_synapse, model.sig[get_post_ens(conn).neurons]["out"]
     )
 
-    # get per-neuron error signal by projecting it onto next population's encoders.
+    # Get per-neuron error signal by projecting it onto next population's encoders.
     if conn._to_neurons:
         # local error = dot(encoders, error)
         post = get_post_ens(conn)
@@ -340,7 +340,7 @@ def build_bayesian(model, bayesian, rule):
         )
     )
 
-    # expose values for probes
+    # Expose for probes
     model.sig[rule]["mu"] = mu
     model.sig[rule]["sigma2"] = sigma2
     model.sig[rule]["pre_filtered"] = pre_filtered
