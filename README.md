@@ -4,6 +4,26 @@ In this project, I implement a biologically inspired, online Bayesian learning r
 
 > **TL;DR**: Synapses will adapt their weights based on how uncertain they are about the correct value of the weight. Synapses with higher uncertainty (variance) update more aggressively in response to errors. Implementing this in Nengo allows for real-time Bayesian-style learning with interconnected spiking neuron populations!
 
+```python
+from learning_rules import Bayesian
+import nengo
+
+# Define prior mean and variance
+prior_mean = np.full((n_post, n_pre), 0.5)
+prior_var = np.full((n_post, n_pre), 0.02)
+
+# Use Bayesian rule in a Nengo connection
+nengo.Connection(
+    pre, post,
+    function=lambda x: [0],
+    solver=nengo.solvers.NoSolver(weights=True),
+    learning_rule_type=Bayesian(prior_mean, prior_var),
+)
+```
+For compatibility with Nengo:  
+- _Python 3.10_
+- _NumPy 1.26.4_
+
 ## Background
 
 In neuroscience, the **Bayesian brain hypothesis** suggests that the brain constantly updates its internal beliefs about the world using probabilistic inference. In this view, perception, learning, and action are all about minimizing error between a biological agent's internal models (predictions) about the world vs. the actual sensory inputs it receives over time.
@@ -17,7 +37,7 @@ While Aitchison et al. applied their learning rule to single-neuron models with 
 ## Learning Rule
 
 ### Bayesian Learning Equations (Aitchison et al.)
-Synaptic weights $w_i$ are modeled as random variables with mean $\mu_i$ and variance $\sigma_i^2$. The learning rule updates these parameters using local error $\delta$ and presynaptic activity $x_i$:
+Synaptic weights $w_i$ are modeled as random variables with mean $\mu_i$ and variance $\sigma_i^2$. The learning rule updates these parameters using error $\delta$ and presynaptic activity $x_i$:
 
 $$
 \Delta \mu_i \approx \frac{\sigma_i^2}{\sigma_\delta^2} \cdot x_i \cdot \delta - \frac{1}{\tau} (\mu_i - \mu_{\text{prior}})
@@ -33,7 +53,7 @@ Where:
 - $\mu_{\text{prior}}, \sigma_{\text{prior}}^2$ are prior beliefs over the weight
 - $\tau$ is a time constant that controls the tendency to drift toward the priors by default
 
-In essence, these equations are extensions of the classical **Delta rule**, which updates weights based on an error signal and learning rate. In this Bayesian version, rather than using a fixed learning rate, the update is scaled by a coefficient that represents how uncertain the synapse is about its weight. When there is little tendency to update, values will naturally drift toward the priors, dictated by $\tau$.
+In essence, these equations are extensions of the classical **Delta rule**, which updates weights based on an error signal and learning rate. In this Bayesian version, rather than using a fixed learning rate, the update is scaled by a coefficient that represents how uncertain the synapse is about its weight. When _information is received_, i.e. presynaptic activity $x_i$ is high, the weight will update in correspondence with the level of uncertainty. In the absence of information, the values will naturally tend to drift toward the prior values, controlled by $\tau$.
 
 ---
 
